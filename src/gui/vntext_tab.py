@@ -61,6 +61,9 @@ class VNTextTab:
             selection_type="folder"
         )
         
+        # 绑定日文脚本文件夹路径变化回调
+        self.script_jp_selector.bind_path_changed(self._on_script_jp_path_changed)
+        
         self.json_jp_selector = FileSelector(
             self.frame,
             "日文JSON保存文件夹",
@@ -473,6 +476,54 @@ class VNTextTab:
         
         self.output_display.stop_output_monitoring()
         self._save_config()
+    
+    def _on_script_jp_path_changed(self, path: str):
+        """当日文脚本文件夹路径变化时，自动更新相关文件夹路径"""
+        if not path:
+            return
+            
+        import os
+        
+        # 获取日文脚本文件夹的父目录
+        jp_script_parent = os.path.dirname(path)
+        
+        # 更新日文JSON保存文件夹
+        json_jp_folder = self.json_jp_selector.get_path()
+        if not json_jp_folder or not self._is_subdirectory(json_jp_folder, path):
+            # 不是子目录，更新为父目录下的gt_input文件夹
+            new_json_jp_folder = os.path.join(jp_script_parent, "gt_input")
+            self.json_jp_selector.set_path(new_json_jp_folder)
+        
+        # 更新译文JSON文件夹
+        json_cn_folder = self.json_cn_selector.get_path()
+        if not json_cn_folder or not self._is_subdirectory(json_cn_folder, path):
+            new_json_cn_folder = os.path.join(jp_script_parent, "gt_output")
+            self.json_cn_selector.set_path(new_json_cn_folder)
+        
+        # 更新译文脚本保存文件夹
+        script_cn_folder = self.script_cn_selector.get_path()
+        if not script_cn_folder or not self._is_subdirectory(script_cn_folder, path):
+            new_script_cn_folder = os.path.join(jp_script_parent, "script_output")
+            self.script_cn_selector.set_path(new_script_cn_folder)
+    
+    def _is_subdirectory(self, child_path: str, parent_path: str) -> bool:
+        """
+        判断child_path是否是parent_path的子目录
+        """
+        import os
+        try:
+            # 规范化路径
+            child_path = os.path.normpath(child_path)
+            parent_path = os.path.normpath(parent_path)
+            
+            # 获取相对路径
+            rel_path = os.path.relpath(child_path, parent_path)
+            
+            # 如果相对路径不以..开头，则child_path是parent_path的子目录
+            return not rel_path.startswith('..')
+        except ValueError:
+            # 在某些情况下（如不同驱动器），relpath可能抛出ValueError
+            return False
     
     def _open_vntextpatch_link(self, event):
         """打开VNTextPatch链接"""
