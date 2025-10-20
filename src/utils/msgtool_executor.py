@@ -7,6 +7,9 @@ import os
 from typing import Optional, Callable, List
 from .command_executor import CommandExecutor, ExecutionResult
 from platform import system
+import sys
+import locale
+import subprocess
 
 
 ENCODING_CP_MAP = {

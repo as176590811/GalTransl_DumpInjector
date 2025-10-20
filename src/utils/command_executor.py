@@ -9,6 +9,9 @@ import time
 from typing import Optional, Callable, Dict, Any, List
 from dataclasses import dataclass
 from enum import Enum
+import sys
+import locale
+import os
 
 
 class ExecutionStatus(Enum):
@@ -40,6 +43,41 @@ class CommandExecutor:
         self._process: Optional[subprocess.Popen] = None
         self._cancelled = False
     
+    def _get_system_encoding(self):
+        """获取系统编码"""
+        # 首先尝试获取系统默认编码
+        system_encoding = locale.getpreferredencoding()
+        
+        # 在Windows系统中，检查是否启用了UTF-8支持
+        if sys.platform == "win32":
+            # 检查是否设置了PYTHONIOENCODING环境变量
+            if 'PYTHONIOENCODING' in os.environ:
+                return os.environ['PYTHONIOENCODING']
+            
+            # 检查是否在Windows Terminal或启用了UTF-8的环境中
+            # Windows 10/11中可以通过设置启用UTF-8支持
+            if 'WT_SESSION' in os.environ or 'ConEmuPID' in os.environ:
+                # 在现代终端中，默认使用UTF-8
+                return 'utf-8'
+            
+            # 检查chcp命令的输出（代码页）
+            try:
+                import subprocess
+                result = subprocess.run(['chcp'], capture_output=True, text=True, shell=True)
+                if '65001' in result.stdout:
+                    # 65001是UTF-8代码页
+                    return 'utf-8'
+            except:
+                pass
+            
+            if system_encoding:
+                return system_encoding
+            else:
+                return 'utf-8'  # Windows默认编码
+        
+        # 非Windows系统使用系统默认编码
+        return system_encoding if system_encoding else 'utf-8'
+    
     def execute(
         self, 
         command: str, 
@@ -60,6 +98,9 @@ class CommandExecutor:
         self._cancelled = False
         
         try:
+            # 获取系统编码
+            system_encoding = self._get_system_encoding()
+            
             # 创建进程
             self._process = subprocess.Popen(
                 command,
@@ -70,7 +111,7 @@ class CommandExecutor:
                 text=True,
                 bufsize=0,  # 禁用缓冲，防止输出卡死
                 universal_newlines=True,
-                encoding='utf-8',  # 明确指定UTF-8编码
+                encoding=system_encoding,  # 使用系统编码
                 errors='replace'   # 遇到编码错误时替换为占位符
             )
             
